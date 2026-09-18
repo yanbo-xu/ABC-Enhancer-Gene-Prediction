@@ -48,7 +48,7 @@ rule generate_chrom_sizes_bed_file:
 ## sort narrowPeaks
 rule sort_narrowpeaks:
 	input:
-		narrowPeak = os.path.join(RESULTS_DIR, "{biosample}", "Peaks", "macs2_peaks.narrowPeak"),
+		narrowPeak = get_narrowpeak_file,
 		chrom_sizes_bed = os.path.join(RESULTS_DIR, "tmp", os.path.basename(config['ref']['chrom_sizes']) + '.bed')
 	params:
 		chrom_sizes = config['ref']['chrom_sizes']

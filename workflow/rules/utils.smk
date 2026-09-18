@@ -121,6 +121,21 @@ def get_accessibility_files(wildcards):
 	files = BIOSAMPLES_CONFIG.loc[wildcards.biosample, "DHS"] or BIOSAMPLES_CONFIG.loc[wildcards.biosample, "ATAC"]
 	return files.split(",")
 
+def get_peak_file(wildcards):
+	if "peak_file" not in BIOSAMPLES_CONFIG.columns:
+		return None
+	peak_file = BIOSAMPLES_CONFIG.loc[wildcards.biosample, "peak_file"]
+	if peak_file is None or pd.isna(peak_file):
+		return None
+	peak_file = str(peak_file).strip()
+	return peak_file or None
+
+def get_narrowpeak_file(wildcards):
+	peak_file = get_peak_file(wildcards)
+	if peak_file:
+		return peak_file
+	return os.path.join(RESULTS_DIR, wildcards.biosample, "Peaks", "macs2_peaks.narrowPeak")
+
 def get_activity_files(wildcards):
 	# for neighborhoods step, to trigger download of necessary inputs
 	files = get_accessibility_files(wildcards)
@@ -175,6 +190,19 @@ def _validate_hic_info(row: pd.Series):
 			raise InvalidConfig("Must provide HiC type and resolution with file")
 		if row["HiC_resolution"] != 5000:
 			raise InvalidConfig("Only 5kb resolution supported at the moment")
+
+def _validate_peak_file(row: pd.Series):
+	if "peak_file" not in row.index:
+		return
+	peak_file = row["peak_file"]
+	if peak_file is None or pd.isna(peak_file):
+		return
+	peak_file = str(peak_file).strip()
+	if peak_file and not os.path.isfile(peak_file):
+		raise InvalidConfig(
+			f"External peak file for biosample '{row['biosample']}' does not exist: "
+			f"{peak_file}"
+		)
 
 def _is_url(path):
 	"""Check if a path is a URL."""
@@ -240,6 +268,7 @@ def _validate_biosamples_config(biosamples_config, validate_inputs_exist=True):
 	for _, row in biosamples_config.iterrows():
 		_validate_hic_info(row)
 		_validate_accessibility_feature(row)
+		_validate_peak_file(row)
 		if validate_inputs_exist:
 			_validate_input_files_exist(row)
 

@@ -8,7 +8,8 @@ rule make_candidate_regions:
 		TSS = lambda wildcards: BIOSAMPLES_CONFIG.loc[wildcards.biosample, 'TSS'],
 		chrom_sizes = config['ref']['chrom_sizes'],
 		regions_blocklist = config['ref']['regions_blocklist'],
-		peakExtendFromSummit = config['params_candidate']['peakExtendFromSummit'],
+		peakExtendFromSummit = lambda wildcards: 0 if get_peak_file(wildcards) else config['params_candidate']['peakExtendFromSummit'],
+		ignoreSummits = lambda wildcards: "--ignoreSummits" if get_peak_file(wildcards) else "",
 		nStrongestPeak = config['params_candidate']['nStrongestPeaks'],
 		output_dir = os.path.join(RESULTS_DIR, "{biosample}", "Peaks"),
 		scripts_dir = SCRIPTS_DIR,
@@ -29,5 +30,5 @@ rule make_candidate_regions:
 			--regions_blocklist {params.regions_blocklist} \
 			--regions_includelist {params.TSS} \
 			--peakExtendFromSummit {params.peakExtendFromSummit} \
-			--nStrongestPeak {params.nStrongestPeak}
+			--nStrongestPeak {params.nStrongestPeak} {params.ignoreSummits}
 		"""
