@@ -418,13 +418,31 @@ def run_count_reads(
         raise ValueError(
             "File {} name format doesn't match bam, tagAlign, or bigWig".format(target)
         )
-    double_sex_chrom_counts(output)
+    double_sex_chrom_counts(output, genome_sizes)
 
 
-def double_sex_chrom_counts(output):
+def double_sex_chrom_counts(output, genome_sizes):
     # Double the count values for sex chromosomes to make it seem
-    # like they have 2 copies
-    awk_command = r"""awk 'BEGIN {FS=OFS="\t"} (substr($1, length($1)) == "X" || substr($1, length($1)) == "Y") { $4 *= 2 } 1' """
+    # like they have 2 copies. Only apply the legacy adjustment when the
+    # configured reference explicitly includes chrX and/or chrY.
+    reference_chromosomes = set(
+        pd.read_table(genome_sizes, header=None, usecols=[0], dtype=str).iloc[:, 0]
+    )
+    sex_chromosomes = [
+        chromosome
+        for chromosome in ["chrX", "chrY"]
+        if chromosome in reference_chromosomes
+    ]
+    if not sex_chromosomes:
+        return
+
+    sex_chromosome_condition = " || ".join(
+        f'$1 == "{chromosome}"' for chromosome in sex_chromosomes
+    )
+    awk_command = (
+        "awk 'BEGIN {FS=OFS=\"\\t\"} "
+        f"({sex_chromosome_condition}) {{ $4 *= 2 }} 1' "
+    )
     file_creation_command = f"{output} > {output}.tmp && mv {output}.tmp {output}"
     run_command(awk_command + file_creation_command)
 
@@ -564,7 +582,7 @@ def count_single_feature_for_bed(
     domain_counts = read_bed(feature_outfile)
     score_column = domain_counts.columns[-1]
 
-    total_counts = count_total(feature_bam)
+    total_counts = count_total(feature_bam, genome_sizes)
 
     domain_counts = domain_counts[["chr", "start", "end", score_column]]
     featurecount = feature_name + ".readCount"
@@ -671,11 +689,12 @@ def count_bam_mapped(bam_file):
     return sum(vals)
 
 
-def count_tagalign_total(tagalign):
+def count_tagalign_total(tagalign, genome_sizes):
     result = int(
         check_output(
-            "zcat {} | grep -E 'chr[1-9]|chr1[0-9]|chr2[0-2]|chrX|chrY' | wc -l".format(
-                tagalign
+            "gzip -cd {} | awk 'NR == FNR {{valid[$1] = 1; next}} "
+            "$1 in valid {{count++}} END {{print count}}' {} -".format(
+                tagalign, genome_sizes
             ),
             shell=True,
         )
@@ -695,10 +714,10 @@ def count_bigwig_total(bw_file):
     return result
 
 
-def count_total(infile):
+def count_total(infile, genome_sizes):
     filename = os.path.basename(infile)
     if "tagAlign" in filename:
-        total_counts = count_tagalign_total(infile)
+        total_counts = count_tagalign_total(infile, genome_sizes)
     elif filename.endswith(".bam"):
         total_counts = count_bam_mapped(infile)
     elif isBigWigFile(filename):
