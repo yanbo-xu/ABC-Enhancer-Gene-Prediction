@@ -164,7 +164,7 @@ def processCellType(args):
     )
 
     chrom_sizes_map = pd.read_csv(
-        args.chrom_sizes, sep="\t", header=None, index_col=0
+        args.chrom_sizes, sep="\t", header=None, dtype={0: str}, index_col=0
     ).to_dict()[1]
 
     if not args.skip_gene_counts:
