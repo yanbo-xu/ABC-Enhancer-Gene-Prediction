@@ -172,12 +172,12 @@ def main():
     write_params(args, os.path.join(args.outdir, "parameters.predict.txt"))
 
     print("reading genes")
-    genes = pd.read_csv(args.genes, sep="\t")
+    genes = pd.read_csv(args.genes, sep="\t", dtype={"chr": str})
     genes = determine_expressed_genes(
         genes, args.expression_cutoff, args.promoter_activity_quantile_cutoff
     )
     print("reading enhancers")
-    enhancers_full = pd.read_csv(args.enhancers, sep="\t")
+    enhancers_full = pd.read_csv(args.enhancers, sep="\t", dtype={"chr": str})
     enhancers_column_names = ["chr", "start", "end", "name", "class", "activity_base"]
     if args.accessibility_feature not in {"ATAC", "DHS"}:
         raise ValueError("The feature has to be either ATAC or DHS!")
@@ -243,7 +243,7 @@ def main():
         chromosomes = args.chromosomes.split(",")
 
     chrom_sizes_map = pd.read_csv(
-        args.chrom_sizes, sep="\t", header=None, index_col=0
+        args.chrom_sizes, sep="\t", header=None, dtype={0: str}, index_col=0
     ).to_dict()[1]
 
     for chromosome in chromosomes:

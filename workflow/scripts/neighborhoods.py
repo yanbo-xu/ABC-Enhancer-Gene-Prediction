@@ -228,6 +228,7 @@ def process_gene_bed(
     # Remove genes that are not defined in chromosomes file
     if chrom_sizes is not None:
         sizes = read_bed(chrom_sizes)
+        sizes["chr"] = sizes["chr"].astype("str")
         bed["chr"] = bed["chr"].astype(
             "str"
         )  # JN needed in case chromosomes are all integer
